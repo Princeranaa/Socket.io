@@ -1,0 +1,87 @@
+// import express from "express";
+// import http from "http";
+
+// // const { Server } = require("socket.io");
+// const cors = require("cors");
+// const path = require("path");
+// const cookies = require("cookie-parser");
+
+// const app = express();
+// const server = http.createServer(app);
+
+
+// app.use(cors());
+// app.use(cookies());
+// app.use(express.static(path.join(__dirname, "public")))
+// app.use(express.urlencoded({ extended: true }));
+// app.use(express.json());
+// app.set('view engine', 'ejs');
+
+
+// const userRouter = require('./router/UserRouter.js')
+// const chatRouter = require('./router/ChatRouter.js')
+// app.use('/',userRouter)
+// app.use('/',chatRouter)
+
+
+// const db = require('./config/database.js')
+// db.connectToDb()
+
+
+
+// // Import and initialize Socket.io
+// const io = require("./socket.js")(server);
+
+
+// server.listen(3000, () => {
+//   console.log("🚀 Server running on http://localhost:3000");
+// });
+
+
+
+import express from "express";
+import http from "http";
+import cors from "cors";
+import path from "path";
+import cookieParser from "cookie-parser";
+import { fileURLToPath } from "url";
+import userRouter from "./router/UserRouter.js";
+import chatRouter from "./router/ChatRouter.js";
+import connectToDb from "./config/database.js";
+import initSocket from "./socket.js";  // ✅ Now it works!
+
+
+// Convert __dirname for ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const server = http.createServer(app);
+
+// Middleware
+app.use(cors());
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, "public")));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.set("view engine", "ejs");
+
+
+
+// Routes
+app.use("/", userRouter);
+app.use("/", chatRouter);
+
+ // This will now work correctly
+connectToDb();
+
+
+// Initialize Socket.io
+initSocket(server);
+
+// Start Server
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
+

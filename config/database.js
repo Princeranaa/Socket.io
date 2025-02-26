@@ -1,12 +1,16 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-require("dotenv").config();
+dotenv.config(); // ✅ Load environment variables
 
-exports.connectToDb = async () => {
+const connectToDb = async () => {
   try {
-    mongoose.connect(process.env.MONGO_URL);
-    console.log("Connected to database");
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ Database connected successfully");
   } catch (error) {
-    console.log(error.message);
+    console.error("❌ Database connection error:", error);
+    process.exit(1);
   }
 };
+
+export default connectToDb; // ✅ Use ES Module export
