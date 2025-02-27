@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 h-screen flex items-center justify-center">
+    <div
+      class="w-full max-w-4xl h-[80vh] bg-white shadow-lg rounded-lg flex overflow-hidden"
+    >
+
+      
+      <%- include('./partials/sidebar'); %>
+
+
+      <!-- Chat Section -->
+      <div class="w-2/3 flex flex-col">
+        <div class="bg-gray-900 text-white p-4 text-xl font-bold">Chat</div>
+        <div class="flex-1 p-4 overflow-y-auto" id="messagesContainer">
+          <ul id="messages" class="space-y-2"></ul>
+        </div>
+        <div class="p-4 bg-gray-200 flex items-center">
+          <input
+            id="message"
+            type="text"
+            placeholder="Type a message..."
+            class="flex-1 p-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+          />
+          <button
+            onclick="sendMessage()"
+            class="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const socket = io();
+      const loggedInUserId = "<%= loggedInUserId || '' %>";
+      let selectedUser = null;
+      // Add this: Create a map of user IDs to names
+      const userNames = {};
+      
+      // Initialize userNames map when page loads
+      document.querySelectorAll('#userList li').forEach(li => {
+        const userId = li.getAttribute('onclick').match(/'([^']+)'/)[1];
+        const userName = li.textContent.trim();
+        userNames[userId] = userName;
+      });
+
+      if (!loggedInUserId) {
+        alert("User not logged in. Please log in first.");
+        window.location.href = "/login";
+      }
+
+      // ✅ Select user and join room
+      async function selectUser(userId) {
+        if (userId === loggedInUserId) {
+          alert("You cannot chat with yourself.");
+          return;
+        }
+
+        selectedUser = userId;
+        const room = [loggedInUserId, selectedUser].sort().join("_");
+        socket.emit("join room", room);
+        
+        // Clear previous messages
+        document.getElementById("messages").innerHTML = "";
+        
+        // Load previous messages
+        try {
+          const response = await fetch(`/messages?sender=${loggedInUserId}&receiver=${selectedUser}`);
+          const messages = await response.json();
+          
+          messages.forEach(msg => {
+            const li = document.createElement("li");
+            const isCurrentUser = msg.sender === loggedInUserId;
+            const senderName = isCurrentUser ? "You" : userNames[msg.sender];
+            
+            li.textContent = `${senderName}: ${msg.message}`;
+            li.className = `p-2 rounded-lg ${
+              isCurrentUser 
+                ? "bg-blue-500 text-white ml-auto" 
+                : "bg-gray-300 text-black"
+            }`;
+            li.style.maxWidth = "80%";
+            li.style.marginBottom = "8px";
+            
+            document.getElementById("messages").appendChild(li);
+          });
+          
+          // Scroll to bottom
+          const container = document.getElementById("messagesContainer");
+          container.scrollTop = container.scrollHeight;
+        } catch (error) {
+          console.error("Error loading messages:", error);
+        }
+      }
+
+      // ✅ Receive messages and update UI
+      socket.on("private message", ({ sender, message }) => {
+        console.log(`📩 Message received from ${sender}: ${message}`);
+
+        const messagesContainer = document.getElementById("messages");
+        const li = document.createElement("li");
+        
+        // Determine if the message is from the current user or the other user
+        const isCurrentUser = sender === loggedInUserId;
+        const senderName = isCurrentUser ? "You" : userNames[sender];
+        
+        li.textContent = `${senderName}: ${message}`;
+        li.className = `p-2 rounded-lg ${
+          isCurrentUser 
+            ? "bg-blue-500 text-white ml-auto" 
+            : "bg-gray-300 text-black"
+        }`;
+        li.style.maxWidth = "80%";
+        li.style.marginBottom = "8px";
+        
+        messagesContainer.appendChild(li);
+        
+        // Scroll to bottom
+        const container = document.getElementById("messagesContainer");
+        container.scrollTop = container.scrollHeight;
+      });
+
+      // ✅ Send messages
+      function sendMessage() {
+        const messageInput = document.getElementById("message");
+        if (!selectedUser) {
+          alert("Please select a user to chat with first");
+          return;
+        }
+        
+        if (messageInput.value.trim()) {
+          const message = messageInput.value.trim();
+          const room = [loggedInUserId, selectedUser].sort().join("_");
+
+          // Emit the message with room information
+          socket.emit("private message", {
+            sender: loggedInUserId,
+            receiver: selectedUser,
+            message,
+            room
+          });
+
+          messageInput.value = ""; // Clear input field
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -4,24 +4,25 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 dotenv.config();
 
-
 export const registerUser = async (req, res) => {
   try {
-    const { name, password, email } = req.body;
-    const existingUSer = await User.findOne({ email });
-    if (existingUSer) {
-      return res.status(400).json({ message: "Email already exists" });
+    const { name, email, password } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.render("register", { error: "Email already in use" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = User.create({ name, password: hashedPassword, email });
+    const user = new User({ name, email, password: hashedPassword });
+    await user.save();
 
-    res.status(200).json({
-      message: "User created successfully",
-      user: user,
-    });
+    // Automatically log in after registration
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    res.cookie("token", token, { httpOnly: true }).redirect("/chat");
+
   } catch (error) {
-    console.error(error);
+    console.error("Registration Error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -29,24 +30,46 @@ export const registerUser = async (req, res) => {
 export const userLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "Invalid email or password" });
+  
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.render("login", { error: "Invalid credentials" });
     }
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(400).json({ message: "Invalid email or password" });
-    }
-    const token = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, {
-      expiresIn: "1h",
-    });
-
-    res.cookie("token", token);
-    return res.json({ message: "Login successful", token });
-    
+  
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    res.cookie("token", token, { httpOnly: true }).redirect("/chat");
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ message: "An unexpected error occurred" });
   }
+};
+
+
+
+export const getUsers = async (req, res) => {
+    try {
+        const users = await User.find({}, "name _id"); // Get all users (name & ID only)
+        res.render("ChatPage", { users, user: req.user });
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+
+import Chat from "../model/ChatModel.js";
+
+export const getMessages = async (req, res) => {
+    try {
+        const { sender, receiver } = req.params;
+        const room = [sender, receiver].sort().join("_");
+
+        // Fetch messages from DB, sorted by creation time
+        const messages = await Chat.find({ room }).sort({ createdAt: 1 });
+
+        res.json(messages);  // Return messages as JSON response
+    } catch (error) {
+        console.error("Error fetching messages:", error);
+        res.status(500).json({ message: "Server error" });
+    }
 };
