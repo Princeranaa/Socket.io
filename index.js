@@ -31,7 +31,7 @@ app.set("view engine", "ejs");
 app.use("/", userRouter);
 app.use("/", chatRouter);
 
- // This will now work correctly
+// databse call
 connectToDb();
 
 
