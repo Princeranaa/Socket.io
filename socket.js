@@ -4,16 +4,18 @@ import { saveMessage } from './controller/chatController.js'; // Import message-
 const initSocket = (server) => {
     const io = new Server(server, {
         cors: {
-            origin: "*",
+            origin: "https://localhost:3000",
             methods: ["GET", "POST"],
         },
     });
 
     io.on("connection", (socket) => {
         console.log(`✅ User connected: ${socket.id}`);
+        
 
         // ✅ Join private chat room
         socket.on("join room", (room) => {
+            
             socket.join(room);
             console.log(`📌 User ${socket.id} joined room: ${room}`);
         });

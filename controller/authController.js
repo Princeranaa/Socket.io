@@ -1,3 +1,4 @@
+import Chat from "../model/ChatModel.js";
 import User from "../model/UserModel.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -46,30 +47,15 @@ export const userLogin = async (req, res) => {
 
 
 
-export const getUsers = async (req, res) => {
-    try {
-        const users = await User.find({}, "name _id"); // Get all users (name & ID only)
-        res.render("ChatPage", { users, user: req.user });
-    } catch (error) {
-        console.error("Error fetching users:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-};
+// export const getUsers = async (req, res) => {
+//     try {
+//         const users = await User.find({}, "name _id"); // Get all users (name & ID only)
+//         res.render("ChatPage", { users, user: req.user });
+//     } catch (error) {
+//         console.error("Error fetching users:", error);
+//         res.status(500).json({ message: "Server error" });
+//     }
+// };
 
 
-import Chat from "../model/ChatModel.js";
 
-export const getMessages = async (req, res) => {
-    try {
-        const { sender, receiver } = req.params;
-        const room = [sender, receiver].sort().join("_");
-
-        // Fetch messages from DB, sorted by creation time
-        const messages = await Chat.find({ room }).sort({ createdAt: 1 });
-
-        res.json(messages);  // Return messages as JSON response
-    } catch (error) {
-        console.error("Error fetching messages:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-};

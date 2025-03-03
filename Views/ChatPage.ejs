@@ -41,8 +41,8 @@
 
     <script>
       const socket = io();
-      const loggedInUserId = "<%= loggedInUserId || '' %>";
-      let selectedUser = null;
+      const loggedInUserId = "<%= loggedInUserId  %>";
+      let selectedUser = loggedInUserId;
       // Add this: Create a map of user IDs to names
       const userNames = {};
       
@@ -57,6 +57,25 @@
         alert("User not logged in. Please log in first.");
         window.location.href = "/login";
       }
+        
+     // Ensure the sidebar does not show the logged-in user
+      document.addEventListener("DOMContentLoaded", async () => {
+        document.querySelectorAll("#userList li").forEach((li) => {
+          const userId = li.getAttribute("onclick").match(/'([^']+)'/)[1];
+          if (userId === loggedInUserId) {
+            li.style.display = "none"; // Hide the logged-in user
+          }
+        });
+
+        // Load last selected user from localStorage
+        const lastSelectedUser = localStorage.getItem('lastSelectedUser');
+        if (lastSelectedUser) {
+          await selectUser(lastSelectedUser);
+        }
+      });
+
+
+
 
       // ✅ Select user and join room
       async function selectUser(userId) {
@@ -67,14 +86,30 @@
 
         selectedUser = userId;
         const room = [loggedInUserId, selectedUser].sort().join("_");
+        
+        // Store selected user in localStorage
+        localStorage.setItem('lastSelectedUser', selectedUser);
+        
         socket.emit("join room", room);
         
-        // Clear previous messages
+        await loadMessages(userId);
+      }
+
+      // Separate message loading logic
+      async function loadMessages(userId) {
         document.getElementById("messages").innerHTML = "";
         
-        // Load previous messages
         try {
-          const response = await fetch(`/messages?sender=${loggedInUserId}&receiver=${selectedUser}`);
+          const response = await fetch(`/messages?sender=${loggedInUserId}&receiver=${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${document.cookie.split('=')[1]}`
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch messages');
+          }
+          
           const messages = await response.json();
           
           messages.forEach(msg => {
